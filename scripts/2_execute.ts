@@ -4,7 +4,8 @@ import { deployments, ethers } from "hardhat";
 import { Provider } from "ethers";
 
 import { execTransaction } from "../utils/safe";
-import { getSafeAtAddress } from "../utils/setup";
+import { getMultiSend, getMultiSendAtAddress } from "../utils/setup";
+import { encodeMultiSend, MetaTransaction } from "@safe-global/safe-smart-account";
 
 const setup = async (provider: Provider) => {
     await deployments.fixture();
@@ -24,7 +25,7 @@ const main = async () => {
     const owners = [delegator];
     const account = await delegator.getAddress();
     console.log(`Using account [${account}]`);
-    const safe = await getSafeAtAddress(account);
+    const multiSend = await getMultiSendAtAddress(account);
 
     const amount = 1n;
     if ((await provider.getBalance(account)) < amount) {
@@ -34,8 +35,25 @@ const main = async () => {
         });
     }
 
+    const txs: MetaTransaction[] = [
+        {
+            to: await relayer.getAddress(),
+            value: 1n,
+            data: "0x",
+            operation: 0,
+        },
+        {
+            to: await relayer.getAddress(),
+            value: 1n,
+            data: "0x",
+            operation: 0,
+        },
+    ];
+
+    const multiSendData = encodeMultiSend(txs);
     // Transfer value from the account
-    const tx = await execTransaction(relayer, owners, safe, await relayer.getAddress(), amount.toString(), "0x", "0");
+    const tx = await multiSend.connect(relayer).multiSend(multiSendData);
+    // const tx = await execTransaction(relayer, owners, multiSend, await relayer.getAddress(), amount.toString(), "0x", "0");
     console.log(`Transaction hash [${(await tx.wait())?.hash}]`);
 };
 

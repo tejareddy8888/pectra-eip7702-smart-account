@@ -6,7 +6,7 @@ import { MetaTransaction } from "@safe-global/safe-smart-account";
 import { deployments, ethers } from "hardhat";
 
 import { execTransaction } from "../utils/safe";
-import { getMultiSend, getSafeAtAddress, getSafeSingleton } from "../utils/setup";
+import { getMultiSend, , getSafeSingleton } from "../utils/setup";
 import { isAccountDelegatedToAddress } from "./tx.helper";
 
 const setup = async (provider: Provider) => {

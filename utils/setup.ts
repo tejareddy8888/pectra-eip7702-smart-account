@@ -35,6 +35,10 @@ export const getMultiSend = async () => {
     return ethers.getContractAt(MultiSend.abi, multiSend.address);
 };
 
+export const getMultiSendAtAddress = async (address: string) => {
+    return ethers.getContractAt(MultiSend.abi, address);
+};
+
 export const getSafeLite = async () => {
     const safeLite = await hre.deployments.get("SafeLite");
     return ethers.getContractAt("SafeLite", safeLite.address);

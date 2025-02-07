@@ -1,18 +1,15 @@
 import dotenv from "dotenv";
 dotenv.config();
 import { deployments, ethers } from "hardhat";
-import { Contract, Provider, SigningKey } from "ethers";
+import { Provider, SigningKey } from "ethers";
 
-import { printAccountStorage } from "../utils/storageReader";
-import { getSetupData } from "../utils/safe";
-import { calculateProxyAddress, getAuthorizationList, getSignedTransaction, isAccountDelegatedToAddress } from './tx.helper';
+
+import { getAuthorizationList, getSignedTransaction, isAccountDelegatedToAddress } from './tx.helper';
 
 import {
     getMultiSend,
-    getSafeEIP7702ProxyFactory,
-    getSafeSingleton,
+
 } from "../utils/setup";
-import { SafeEIP7702ProxyFactory } from "../typechain-types";
 
 const setup = async (provider: Provider) => {
     await deployments.fixture();
@@ -20,30 +17,25 @@ const setup = async (provider: Provider) => {
     const delegator = new ethers.Wallet(process.env.ACCOUNT_PRIVATE_KEY || "", provider);
     const relayer = new ethers.Wallet(process.env.RELAYER_PRIVATE_KEY || "", provider);
 
-    const safeSingleton = await getSafeSingleton();
     const multiSend = await getMultiSend();
 
-    const safeEIP7702ProxyFactory: SafeEIP7702ProxyFactory = await getSafeEIP7702ProxyFactory();
 
     console.dir({
-        safeSingleton: (safeSingleton as Contract).target,
         relayer: relayer.address,
         delegator: delegator.address,
-        safeEIP7702ProxyFactory: safeEIP7702ProxyFactory.target,
+        multiSend: multiSend.address,
     })
 
     return {
-        safeSingleton,
         relayer,
         delegator,
-        safeEIP7702ProxyFactory,
         multiSend
     };
 };
 
 const main = async () => {
     const provider = ethers.provider;
-    const { safeSingleton, relayer, delegator, safeEIP7702ProxyFactory, multiSend } = await setup(provider);
+    const { relayer, delegator, multiSend } = await setup(provider);
     const pkDelegator = process.env.ACCOUNT_PRIVATE_KEY || "";
     const relayerSigningKey = new SigningKey(process.env.RELAYER_PRIVATE_KEY || "");
 
@@ -54,24 +46,15 @@ const main = async () => {
     const owners = [delegator];
     const ownerAddresses = await Promise.all(owners.map(async (owner): Promise<string> => await owner.getAddress()));
 
-    const data = getSetupData(ownerAddresses, 1);
-
-    // const proxyAddress = await calculateProxyAddress(safeEIP7702ProxyFactory, await safeSingleton.getAddress(), data, 0);
-    // const isContract = (await provider.getCode(proxyAddress)) === "0x" ? false : true;
-
-    // if (!isContract) {
-    //     console.log(`Deploying Proxy [${proxyAddress}]`);
-    //     const tx = await safeEIP7702ProxyFactory.connect(relayer).createProxyWithNonce(await safeSingleton.getAddress(), data, 0);
-    //     await tx.wait();
-    //     console.log(`Proxy deployment transaction hash: [${tx.hash}]`);
-    // } else {
-    //     console.log("Proxy already deployed: ", proxyAddress);
-    // }
-
+    // // Set Auth to MultiSend
     const authAddress = multiSend.target;
-
     const authorizationList = getAuthorizationList(chainId, authNonce, pkDelegator, authAddress);
-    const encodedSignedTx = await getSignedTransaction(provider, relayerSigningKey, authorizationList);
+    const encodedSignedTx = await getSignedTransaction(provider, relayerSigningKey, authorizationList, delegator.address, 10000);
+
+    // Set Auth to Zero Address 
+    // const authAddress = ethers.ZeroAddress;
+    // const authorizationList = getAuthorizationList(chainId, authNonce, pkDelegator, authAddress);
+    // const encodedSignedTx = await getSignedTransaction(provider, relayerSigningKey, authorizationList, '0x47f44eFba94ba282AE65B4A5b83380E4c78fAAE1', 10000, '0x0000');
 
     const account = await delegator.getAddress();
 
@@ -90,18 +73,35 @@ const main = async () => {
     console.log("Waiting for transaction confirmation");
     await (await provider.getTransaction(response))?.wait();
 
+    // code for sleeping for 25 seconds to ensure Auth Addres has been updated
+    await new Promise(resolve => setTimeout(resolve, 25000));
+
     console.log(await delegator.getAddress(), authAddress);
     console.log("Code at account after transaction: ", await provider.getCode(account));
 
-    // console.log("Account successfully delegated to Safe Proxy");
+    console.log("Account successfully delegated to Multi Send");
 
-    // const setupTxResponse = await relayer.sendTransaction({ to: await delegator.getAddress(), data: data });
-    // await setupTxResponse.wait();
-
-    // await printAccountStorage(provider, account, await safeSingleton.getAddress());
 };
 
 main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });
+
+
+// const data = getSetupData(ownerAddresses, 1);
+
+// const proxyAddress = await calculateProxyAddress(safeEIP7702ProxyFactory, await safeSingleton.getAddress(), data, 0);
+// const isContract = (await provider.getCode(proxyAddress)) === "0x" ? false : true;
+
+// if (!isContract) {
+//     console.log(`Deploying Proxy [${proxyAddress}]`);
+//     const tx = await safeEIP7702ProxyFactory.connect(relayer).createProxyWithNonce(await safeSingleton.getAddress(), data, 0);
+//     await tx.wait();
+//     console.log(`Proxy deployment transaction hash: [${tx.hash}]`);
+// } else {
+//     console.log("Proxy already deployed: ", proxyAddress);
+// }
+
+// const setupTxResponse = await relayer.sendTransaction({ to: await delegator.getAddress(), data: data });
+// await setupTxResponse.wait();
