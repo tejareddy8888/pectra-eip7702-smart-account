@@ -1,0 +1,68 @@
+{
+  "address": "0xa4Ee088Aaf7C77A36Cf2311a3c25dc3a4e21268E",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "bytes",
+          "name": "transactions",
+          "type": "bytes"
+        }
+      ],
+      "name": "multiSend",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x88c9779c605678113cbee3c92d41ee800d2ca4f73576db227f14be85ebca11b6",
+  "receipt": {
+    "to": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+    "from": "0x976291c311e83660CB8975FB1E04F40F76811476",
+    "contractAddress": null,
+    "transactionIndex": 2,
+    "gasUsed": "169562",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockHash": "0xeb5d376ee17a172684f2030a611fc8f332c41832159fc86785dc9c3adb6fc954",
+    "transactionHash": "0x88c9779c605678113cbee3c92d41ee800d2ca4f73576db227f14be85ebca11b6",
+    "logs": [],
+    "blockNumber": 115659,
+    "cumulativeGasUsed": "211562",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "numDeployments": 1,
+  "solcInputHash": "a5f85ea9a61cc83fc08c97f06de6f056",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.27+commit.40a35a09\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"transactions\",\"type\":\"bytes\"}],\"name\":\"multiSend\",\"outputs\":[],\"stateMutability\":\"payable\",\"type\":\"function\"}],\"devdoc\":{\"author\":\"Stefan George - @Georgi87Richard Meissner - @rmeissner\",\"kind\":\"dev\",\"methods\":{\"multiSend(bytes)\":{\"details\":\"Sends multiple transactions and reverts all if one fails.\",\"params\":{\"transactions\":\"Encoded transactions. Each transaction is encoded as a packed bytes of                     operation has to be uint8(0) in this version (=> 1 byte),                     to as a address (=> 20 bytes),                     value as a uint256 (=> 32 bytes),                     data length as a uint256 (=> 32 bytes),                     data as bytes.                     see abi.encodePacked for more information on packed encoding\"}}},\"title\":\"Multi Send Call Only - Allows to batch multiple transactions into one, but only calls\",\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{\"multiSend(bytes)\":{\"notice\":\"The code is for the most part the same as the normal MultiSend (to keep compatibility),         but reverts if a transaction tries to use a delegatecall.This method is payable as delegatecalls keep the msg.value from the previous call         If the calling method (e.g. execTransaction) received ETH this would revert otherwise\"}},\"notice\":\"The guard logic is not required here as this contract doesn't support nested delegate calls\",\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/eip7702/MultiSendCallOnly.sol\":\"MultiSendCallOnly\"},\"evmVersion\":\"paris\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":10000000},\"remappings\":[]},\"sources\":{\"contracts/eip7702/MultiSendCallOnly.sol\":{\"content\":\"// SPDX-License-Identifier: LGPL-3.0-only\\npragma solidity >=0.7.0 <0.9.0;\\n\\n/**\\n * @title Multi Send Call Only - Allows to batch multiple transactions into one, but only calls\\n * @notice The guard logic is not required here as this contract doesn't support nested delegate calls\\n * @author Stefan George - @Georgi87\\n * @author Richard Meissner - @rmeissner\\n */\\ncontract MultiSendCallOnly {\\n    /**\\n     * @dev Sends multiple transactions and reverts all if one fails.\\n     * @param transactions Encoded transactions. Each transaction is encoded as a packed bytes of\\n     *                     operation has to be uint8(0) in this version (=> 1 byte),\\n     *                     to as a address (=> 20 bytes),\\n     *                     value as a uint256 (=> 32 bytes),\\n     *                     data length as a uint256 (=> 32 bytes),\\n     *                     data as bytes.\\n     *                     see abi.encodePacked for more information on packed encoding\\n     * @notice The code is for the most part the same as the normal MultiSend (to keep compatibility),\\n     *         but reverts if a transaction tries to use a delegatecall.\\n     * @notice This method is payable as delegatecalls keep the msg.value from the previous call\\n     *         If the calling method (e.g. execTransaction) received ETH this would revert otherwise\\n     */\\n    function multiSend(bytes memory transactions) public payable {\\n        /* solhint-disable no-inline-assembly */\\n        /// @solidity memory-safe-assembly\\n        assembly {\\n            let length := mload(transactions)\\n            let i := 0x20\\n            for {\\n                // Pre block is not used in \\\"while mode\\\"\\n            } lt(i, length) {\\n                // Post block is not used in \\\"while mode\\\"\\n            } {\\n                // First byte of the data is the operation.\\n                // We shift by 248 bits (256 - 8 [operation byte]) it right since mload will always load 32 bytes (a word).\\n                // This will also zero out unused data.\\n                let operation := shr(0xf8, mload(add(transactions, i)))\\n                // We offset the load address by 1 byte (operation byte)\\n                // We shift it right by 96 bits (256 - 160 [20 address bytes]) to right-align the data and zero out unused data.\\n                let to := shr(0x60, mload(add(transactions, add(i, 0x01))))\\n                // Defaults `to` to `address(this)` if `address(0)` is provided.\\n                to := or(to, mul(iszero(to), address()))\\n                // We offset the load address by 21 byte (operation byte + 20 address bytes)\\n                let value := mload(add(transactions, add(i, 0x15)))\\n                // We offset the load address by 53 byte (operation byte + 20 address bytes + 32 value bytes)\\n                let dataLength := mload(add(transactions, add(i, 0x35)))\\n                // We offset the load address by 85 byte (operation byte + 20 address bytes + 32 value bytes + 32 data length bytes)\\n                let data := add(transactions, add(i, 0x55))\\n                let success := 0\\n                switch operation\\n                case 0 {\\n                    success := call(gas(), to, value, data, dataLength, 0, 0)\\n                }\\n                // This version does not allow delegatecalls\\n                case 1 {\\n                    revert(0, 0)\\n                }\\n                if iszero(success) {\\n                    let ptr := mload(0x40)\\n                    returndatacopy(ptr, 0, returndatasize())\\n                    revert(ptr, returndatasize())\\n                }\\n                // Next entry starts at 85 byte + data length\\n                i := add(i, add(0x55, dataLength))\\n            }\\n        }\\n        /* solhint-enable no-inline-assembly */\\n    }\\n}\",\"keccak256\":\"0xedbf01715bfaf474291a375b8d63d1f6a1d3668ab7891862b38f48567f0767b1\",\"license\":\"LGPL-3.0-only\"}},\"version\":1}",
+  "bytecode": "0x6080604052348015600f57600080fd5b5061021a8061001f6000396000f3fe60806040526004361061001e5760003560e01c80638d80ff0a14610023575b600080fd5b6100366100313660046100ee565b610038565b005b805160205b818110156100ba57828101805160018201516015830151603584015160f89390931c9360609290921c80153002179290916055016000858015610087576001811461001e57610093565b6000808585888a5af191505b50806100a75760405195503d6000873e3d86fd5b505080605501850194505050505061003d565b505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b60006020828403121561010057600080fd5b813567ffffffffffffffff81111561011757600080fd5b8201601f8101841361012857600080fd5b803567ffffffffffffffff811115610142576101426100bf565b6040517fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0603f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f8501160116810181811067ffffffffffffffff821117156101ae576101ae6100bf565b6040528181528282016020018610156101c657600080fd5b8160208401602083013760009181016020019190915294935050505056fea2646970667358221220667149a487b6ed453b5228233e5327ebcbde37a82cf9f8fe30507df5696539c164736f6c634300081b0033",
+  "deployedBytecode": "0x60806040526004361061001e5760003560e01c80638d80ff0a14610023575b600080fd5b6100366100313660046100ee565b610038565b005b805160205b818110156100ba57828101805160018201516015830151603584015160f89390931c9360609290921c80153002179290916055016000858015610087576001811461001e57610093565b6000808585888a5af191505b50806100a75760405195503d6000873e3d86fd5b505080605501850194505050505061003d565b505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b60006020828403121561010057600080fd5b813567ffffffffffffffff81111561011757600080fd5b8201601f8101841361012857600080fd5b803567ffffffffffffffff811115610142576101426100bf565b6040517fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0603f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe0601f8501160116810181811067ffffffffffffffff821117156101ae576101ae6100bf565b6040528181528282016020018610156101c657600080fd5b8160208401602083013760009181016020019190915294935050505056fea2646970667358221220667149a487b6ed453b5228233e5327ebcbde37a82cf9f8fe30507df5696539c164736f6c634300081b0033",
+  "devdoc": {
+    "author": "Stefan George - @Georgi87Richard Meissner - @rmeissner",
+    "kind": "dev",
+    "methods": {
+      "multiSend(bytes)": {
+        "details": "Sends multiple transactions and reverts all if one fails.",
+        "params": {
+          "transactions": "Encoded transactions. Each transaction is encoded as a packed bytes of                     operation has to be uint8(0) in this version (=> 1 byte),                     to as a address (=> 20 bytes),                     value as a uint256 (=> 32 bytes),                     data length as a uint256 (=> 32 bytes),                     data as bytes.                     see abi.encodePacked for more information on packed encoding"
+        }
+      }
+    },
+    "title": "Multi Send Call Only - Allows to batch multiple transactions into one, but only calls",
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {
+      "multiSend(bytes)": {
+        "notice": "The code is for the most part the same as the normal MultiSend (to keep compatibility),         but reverts if a transaction tries to use a delegatecall.This method is payable as delegatecalls keep the msg.value from the previous call         If the calling method (e.g. execTransaction) received ETH this would revert otherwise"
+      }
+    },
+    "notice": "The guard logic is not required here as this contract doesn't support nested delegate calls",
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [],
+    "types": null
+  }
+}
