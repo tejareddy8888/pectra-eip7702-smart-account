@@ -4,6 +4,7 @@ import Safe from "@safe-global/safe-smart-account/build/artifacts/contracts/Safe
 import ISafe from "@safe-global/safe-smart-account/build/artifacts/contracts/interfaces/ISafe.sol/ISafe.json";
 import MultiSendCallOnly from "@safe-global/safe-smart-account/build/artifacts/contracts/libraries/MultiSendCallOnly.sol/MultiSendCallOnly.json";
 import MultiSend from "@safe-global/safe-smart-account/build/artifacts/contracts/libraries/MultiSend.sol/MultiSend.json";
+import ExperimentDelegation from "../build/artifacts/contracts/eip7702/ExperimentDelegation.sol/ExperimentDelegation.json";
 import { Address } from "hardhat-deploy/types";
 
 export const getSafeSingleton = async () => {
@@ -28,6 +29,11 @@ export const getSafeEIP7702ProxyFactory = async () => {
 export const getMultiSendCallOnly = async () => {
     const multiSendCallOnly = await hre.deployments.get("MultiSendCallOnly");
     return ethers.getContractAt(MultiSendCallOnly.abi, multiSendCallOnly.address);
+};
+
+export const getExperimentDelegation = async () => {
+    const experimentDelegation = await hre.deployments.get("ExperimentDelegation");
+    return ethers.getContractAt(ExperimentDelegation.abi, experimentDelegation.address);
 };
 
 export const getMultiSend = async () => {

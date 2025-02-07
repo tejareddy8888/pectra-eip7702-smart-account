@@ -44,7 +44,10 @@
     "solhint": "^5.0.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "viem": "2.21.28",
+    "wagmi": "^2.12.18",
+    "webauthn-p256": "^0.0.10"
   },
   "dependencies": {
     "@account-abstraction/contracts": "^0.7.0",
